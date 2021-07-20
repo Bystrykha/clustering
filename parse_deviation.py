@@ -4,7 +4,6 @@ import re
 import json
 import math
 import time
-import numpy as np
 
 
 def parse_deviation(log_name: str, limit=0) -> None:
@@ -52,20 +51,19 @@ def parse_deviation(log_name: str, limit=0) -> None:
     # Calculate differences between neighbour timestamps
 
     clients_diff = dict()
-    for key in clients_reqs:
+    for client, req_time in clients_reqs.items():
         session_req = []
-        clients_diff[key] = []
-        for i in range(len(clients_reqs[key])-1):
-            diff = clients_reqs[key][i + 1] - clients_reqs[key][i]
-            if diff < 1800:
+        clients_diff[client] = []
+        for i in range(len(req_time)-1):
+            diff = req_time[i + 1] - req_time[i]
+            if diff < 60 * 30:  # отсутствие запросов от клиента на протяжении 30-и минут
                 session_req.append(diff)
             else:
-                clients_diff[key].append(session_req)
+                clients_diff[client].append(session_req)
                 session_req.clear()
         if len(session_req) > 0:
-            clients_diff[key].append(session_req)
+            clients_diff[client].append(session_req)
 
-    # TODO: fix naming when limit = 0
     with open("dumps/log_clients_diff_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_diff, outfile, indent=4)
 
@@ -78,16 +76,17 @@ def parse_deviation(log_name: str, limit=0) -> None:
     with open("dumps/log_clients_mean_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_mean, outfile, indent=4)
 
-    # # Mean deviation for the request:
-    # # [6, 4, 5] => [abs(4-6), abs(5-4)] => [2, 1] => (2+1)/2 => 1.5 mean deviation
+    # Mean deviation for the request:
+    # [6, 4, 5] => [abs(4-6), abs(5-4)] => [2, 1] => (2+1)/2 => 1.5 mean deviation
 
     # Calculate mean deviation
+
     clients_deviation = dict()
-    for client in clients_diff:
+    for client, sessions in clients_diff.items():
         clients_deviation[client] = []
-        for session_numb in range(len(clients_diff[client])):
+        for session_numb in range(len(sessions)):
             session_deviation = []
-            for timestamp in clients_diff[client][session_numb]:
+            for timestamp in sessions[session_numb]:
                 session_deviation.append((timestamp - clients_mean[client][session_numb]) ** 2)
             clients_deviation[client].append(session_deviation)
 
@@ -114,7 +113,7 @@ if __name__ == "__main__":
         metavar="l",
         type=int,
         help="Parse specified amount of lines.",
-        default=100_000,
+        default=1_000,
     )
     args = parser.parse_args()
 
