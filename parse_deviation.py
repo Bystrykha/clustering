@@ -2,7 +2,9 @@ import datetime
 import argparse
 import re
 import json
+import math
 import time
+import numpy as np
 
 
 def parse_deviation(log_name: str, limit=0) -> None:
@@ -50,10 +52,6 @@ def parse_deviation(log_name: str, limit=0) -> None:
     # Calculate differences between neighbour timestamps
 
     clients_diff = dict()
-    # for client, stamps in clients_reqs.items():
-    #     clients_diff[client] = [
-    #         abs(stamps[i + 1] - stamps[i]) for i in range(len(stamps) - 1)
-    #     ]
     for key in clients_reqs:
         session_req = []
         clients_diff[key] = []
@@ -72,35 +70,36 @@ def parse_deviation(log_name: str, limit=0) -> None:
         json.dump(clients_diff, outfile, indent=4)
 
     clients_mean = dict()
-    # for client, stamps in clients_diff.items():
-    #     clients_mean[client] = sum(stamps) / len(stamps) if len(stamps) > 0 else None
-
-    for key in clients_diff:
-        clients_mean[key] = []
-        for session in clients_diff[key]:
-            clients_mean[key].append(sum(session) / len(session) if len(session) > 0 else None)
+    for client in clients_diff:
+        clients_mean[client] = []
+        for session in clients_diff[client]:
+            clients_mean[client].append(sum(session) / len(session) if len(session) > 0 else None)
 
     with open("dumps/log_clients_mean_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_mean, outfile, indent=4)
 
-    # TODO: change the dictionary format
     # # Mean deviation for the request:
     # # [6, 4, 5] => [abs(4-6), abs(5-4)] => [2, 1] => (2+1)/2 => 1.5 mean deviation
-    #
-    # # Calculate mean deviation
-    # clients_deviation = dict()
-    # for client, stamps in clients_diff.items():
-    #     clients_deviation[client] = [
-    #         abs(stamps[i + 1] - stamps[i]) for i in range(len(stamps) - 1)
-    #     ]
-    #
-    # for client, stamps in clients_deviation.items():
-    #     clients_deviation[client] = sum(stamps) / len(stamps) if len(stamps) > 0 else 0
-    #
-    # with open(
-    #     "dumps/log_clients_deviation_{}k.json".format(limit // 1000), "w"
-    # ) as outfile:
-    #     json.dump(clients_deviation, outfile, indent=4)
+
+    # Calculate mean deviation
+    clients_deviation = dict()
+    for client in clients_diff:
+        clients_deviation[client] = []
+        for session_numb in range(len(clients_diff[client])):
+            session_deviation = []
+            for timestamp in clients_diff[client][session_numb]:
+                session_deviation.append((timestamp - clients_mean[client][session_numb]) ** 2)
+            clients_deviation[client].append(session_deviation)
+
+    for client, sessions in clients_deviation.items():
+        for session_numb in range(len(sessions)):
+            sessions[session_numb] = math.sqrt(sum(sessions[session_numb]) / (len(sessions[session_numb]) - 1)) \
+                if len(sessions[session_numb]) - 1 > 0 else 0
+
+    with open(
+        "dumps/log_clients_deviation_{}k.json".format(limit // 1000), "w"
+    ) as outfile:
+        json.dump(clients_deviation, outfile, indent=4)
 
 
 if __name__ == "__main__":
