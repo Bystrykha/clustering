@@ -49,10 +49,8 @@ def parse_interval(log_name: str, interval: int, limit=0) -> None:
             client_session_reqs[client].append(ts)
 
         for client, ts in client_session_reqs.items():    # заносим в словарь последнюю сессию
-            clients_reqs[client].append(ts)
-
-        # for k, v in clients_reqs.items():
-        #     print(k, "\t", v)
+            if len(client_session_reqs) > 0:
+                clients_reqs[client].append(client_session_reqs[client])
 
         for client, requests in clients_reqs.items():  # изменяем содержимое session_i: ts -> средняя скорость запросов за 30с
             request_speed = []
@@ -96,7 +94,7 @@ if __name__ == "__main__":
         metavar="l",
         type=int,
         help="Parse specified amount of lines.",
-        default=1_000,
+        default=100_000,
     )
     args = parser.parse_args()
 

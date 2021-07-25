@@ -4,6 +4,7 @@ import re
 import json
 import math
 import time
+from collections import defaultdict
 
 
 def parse_deviation(log_name: str, limit=0) -> None:
@@ -50,13 +51,12 @@ def parse_deviation(log_name: str, limit=0) -> None:
 
     # Calculate differences between neighbour timestamps
 
-    clients_diff = dict()
+    clients_diff = defaultdict(list)
     for client, req_time in clients_reqs.items():
         session_req = []
-        clients_diff[client] = []
         for i in range(len(req_time)-1):
             diff = req_time[i + 1] - req_time[i]
-            if diff < 60 * 30:  # отсутствие запросов от клиента на протяжении 30-и минут
+            if diff < 60 * 30:  # разница между запросами менее 30-и минут
                 session_req.append(diff)
             else:
                 clients_diff[client].append(session_req)
@@ -67,9 +67,8 @@ def parse_deviation(log_name: str, limit=0) -> None:
     with open("dumps/log_clients_diff_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_diff, outfile, indent=4)
 
-    clients_mean = dict()
+    clients_mean = defaultdict(list)
     for client in clients_diff:
-        clients_mean[client] = []
         for session in clients_diff[client]:
             clients_mean[client].append(sum(session) / len(session) if len(session) > 0 else None)
 
@@ -81,9 +80,8 @@ def parse_deviation(log_name: str, limit=0) -> None:
 
     # Calculate mean deviation
 
-    clients_deviation = dict()
+    clients_deviation = defaultdict(list)
     for client, sessions in clients_diff.items():
-        clients_deviation[client] = []
         for session_numb in range(len(sessions)):
             session_deviation = []
             for timestamp in sessions[session_numb]:
@@ -93,7 +91,7 @@ def parse_deviation(log_name: str, limit=0) -> None:
     for client, sessions in clients_deviation.items():
         for session_numb in range(len(sessions)):
             sessions[session_numb] = math.sqrt(sum(sessions[session_numb]) / (len(sessions[session_numb]) - 1)) \
-                if len(sessions[session_numb]) - 1 > 0 else 0
+                if len(sessions[session_numb]) - 1 > 0 else None
 
     with open(
         "dumps/log_clients_deviation_{}k.json".format(limit // 1000), "w"
@@ -113,7 +111,7 @@ if __name__ == "__main__":
         metavar="l",
         type=int,
         help="Parse specified amount of lines.",
-        default=1_000,
+        default=100_000,
     )
     args = parser.parse_args()
 
