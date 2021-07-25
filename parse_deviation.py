@@ -63,7 +63,7 @@ def parse_deviation(log_name: str, limit=0) -> None:
                 session_req.clear()
         if len(session_req) > 0:
             clients_diff[client].append(session_req)
-
+            
     with open("dumps/log_clients_diff_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_diff, outfile, indent=4)
 
@@ -75,11 +75,7 @@ def parse_deviation(log_name: str, limit=0) -> None:
     with open("dumps/log_clients_mean_{}k.json".format(limit // 1000), "w") as outfile:
         json.dump(clients_mean, outfile, indent=4)
 
-    # Mean deviation for the request:
-    # [6, 4, 5] => [abs(4-6), abs(5-4)] => [2, 1] => (2+1)/2 => 1.5 mean deviation
-
     # Calculate mean deviation
-
     clients_deviation = defaultdict(list)
     for client, sessions in clients_diff.items():
         for session_numb in range(len(sessions)):
